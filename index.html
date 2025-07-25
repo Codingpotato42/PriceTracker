@@ -33,18 +33,21 @@
 
         <!-- Price History -->
         <div>
-            <h2 class="text-xl font-bold mb-4">Price History</h2>
+            <div class="flex justify-between items-center mb-4">
+                 <h2 class="text-xl font-bold">Price History</h2>
+                 <button id="refresh-button" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg transition duration-300 text-sm">Refresh Now</button>
+            </div>
             <div id="history-container" class="bg-gray-900 rounded-lg p-4 h-64 overflow-y-auto">
                 <p id="loading-message" class="text-gray-500">Waiting for first data fetch...</p>
                 <ul id="history-list" class="space-y-2">
                     <!-- History items will be inserted here by JavaScript -->
                 </ul>
             </div>
-            <p class="text-xs text-gray-500 text-right mt-2">Last checked: <span id="last-updated">Never</span></p>
+            <p id="status-bar" class="text-xs text-gray-500 text-right mt-2">Status: Idle</p>
         </div>
         
         <div class="text-center mt-8 pt-6 border-t border-gray-700">
-             <p class="text-sm text-gray-400">To manually start/update the tracker, go to the 'Actions' tab in the GitHub repository, select 'Live Bitcoin Price Tracker', and click 'Run workflow'.</p>
+             <p class="text-sm text-gray-400">To manually update the data file, go to the 'Actions' tab in the GitHub repository, select 'Live Bitcoin Price Tracker', and click 'Run workflow'.</p>
         </div>
 
     </div>
@@ -53,9 +56,6 @@
         // --- CONFIGURATION ---
         const GITHUB_USERNAME = 'Codingpotato42'; // <-- Change to your GitHub username
         const REPO_NAME = 'PriceTracker'; // <-- Change to your repository name
-        
-        // --- NEW, MORE RELIABLE DATA URL ---
-        // This uses a CDN (jsDelivr) which has much faster cache updates than raw.githubusercontent.com
         const DATA_FILE_URL = `https://cdn.jsdelivr.net/gh/${GITHUB_USERNAME}/${REPO_NAME}@main/price_history.json`;
 
         // --- DOM ELEMENTS ---
@@ -64,7 +64,8 @@
         const priceChangeEl = document.getElementById('price-change');
         const historyListEl = document.getElementById('history-list');
         const loadingMessageEl = document.getElementById('loading-message');
-        const lastUpdatedEl = document.getElementById('last-updated');
+        const statusBarEl = document.getElementById('status-bar');
+        const refreshButton = document.getElementById('refresh-button');
 
         // --- DATA FETCHING & DISPLAY ---
 
@@ -73,21 +74,28 @@
         }
 
         async function updateData() {
+            statusBarEl.textContent = `Status: Fetching latest data...`;
+            statusBarEl.style.color = '#facc15'; // Yellow
+            console.log('Fetching data from:', DATA_FILE_URL);
+
             try {
-                // Add a random query string to prevent the browser from using a cached version of the file.
+                // Add a unique query string every time to aggressively bypass all caches.
                 const response = await fetch(`${DATA_FILE_URL}?t=${new Date().getTime()}`);
                 
                 if (!response.ok) {
                     if (response.status === 404) {
                         loadingMessageEl.textContent = "Backend has not run yet. Please start it from the 'Actions' tab.";
+                        statusBarEl.textContent = "Status: Data file not found on server.";
                     } else {
                         throw new Error(`Network error: ${response.statusText}`);
                     }
+                    statusBarEl.style.color = '#f87171'; // Red
                     return;
                 }
                 
                 const data = await response.json();
                 loadingMessageEl.style.display = 'none';
+                console.log('Data fetched successfully:', data);
 
                 const initialPrice = data.initialPrice;
                 const history = data.history;
@@ -126,15 +134,20 @@
                     historyListEl.appendChild(li);
                 });
                 
-                lastUpdatedEl.textContent = new Date().toLocaleTimeString();
+                statusBarEl.textContent = `Status: Successfully updated at ${new Date().toLocaleTimeString()}`;
+                statusBarEl.style.color = '#34d399'; // Green
 
             } catch (error) {
                 console.error("Failed to fetch or process data:", error);
                 loadingMessageEl.textContent = "Error loading data. Check the console for details.";
+                statusBarEl.textContent = `Status: Error loading data.`;
+                statusBarEl.style.color = '#f87171'; // Red
             }
         }
 
         // --- INITIALIZATION ---
+        refreshButton.addEventListener('click', updateData);
+        
         // Fetch data when the page loads
         updateData();
         // And then fetch it again every 60 seconds to get the latest updates.
