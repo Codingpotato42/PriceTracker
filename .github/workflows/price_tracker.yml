@@ -1,0 +1,66 @@
+name: Live Bitcoin Price Tracker
+
+# --- TRIGGERS ---
+# This workflow runs on a schedule and can also be started manually.
+on:
+  # 1. Runs automatically every 15 minutes.
+  schedule:
+    - cron: '*/15 * * * *'
+  # 2. Allows you to manually run it from the "Actions" tab on GitHub.
+  workflow_dispatch:
+
+jobs:
+  fetch-and-save-price:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out the repository's code so we can read/write files.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # NEW STEP ADDED HERE: Install the 'jq' tool we need for processing data.
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # Step 2: Fetch the current Bitcoin price from CoinGecko.
+      - name: Fetch Bitcoin price
+        id: fetch_price
+        run: |
+          # Use curl to get data from the API and jq to extract the price.
+          PRICE=$(curl -s 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' | jq -r '.bitcoin.usd')
+          # Make the price available to other steps.
+          echo "price=$PRICE" >> $GITHUB_OUTPUT
+          echo "Current BTC Price: $PRICE"
+
+      # Step 3: Read the old history, add the new price, and save.
+      - name: Update price history file
+        run: |
+          # The file where we store our data.
+          HISTORY_FILE="price_history.json"
+          # Get the current price from the previous step.
+          NEW_PRICE=${{ steps.fetch_price.outputs.price }}
+          # Get the current time in a standard format.
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Check if the history file already exists.
+          if [ -f "$HISTORY_FILE" ]; then
+            # If it exists, read the old data and add the new entry.
+            jq --argjson price "$NEW_PRICE" --arg time "$TIMESTAMP" \
+            '.history += [{"price": $price, "timestamp": $time}]' \
+            "$HISTORY_FILE" > tmp_history.json && mv tmp_history.json "$HISTORY_FILE"
+          else
+            # If it doesn't exist, this is the first run. Create a new file.
+            jq -n --argjson price "$NEW_PRICE" --arg time "$TIMESTAMP" \
+            '{initialPrice: $price, history: [{"price": $price, "timestamp": $time}]}' \
+            > "$HISTORY_FILE"
+          fi
+          echo "Updated price history file."
+
+      # Step 4: Commit the updated price_history.json file back to the repository.
+      - name: Commit updated price history
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions-bot@github.com'
+          git add price_history.json
+          # Only commit if the file has actually changed.
+          git diff --staged --quiet || git commit -m "Update Bitcoin price history"
+          git push
