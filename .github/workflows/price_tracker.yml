@@ -2,15 +2,8 @@ name: Live Bitcoin Price Tracker
 
 # --- TRIGGERS ---
 on:
-  # NEW TRIGGER ADDED: This will run the workflow on every push to the main branch.
-  # This is great for testing and helps "wake up" the scheduler.
-  push:
-    branches:
-      - main
-  # This schedule runs automatically every 15 minutes.
   schedule:
     - cron: '*/15 * * * *'
-  # This allows the workflow to be run manually from the Actions tab.
   workflow_dispatch:
 
 jobs:
@@ -61,9 +54,13 @@ jobs:
           fi
           echo "Updated price history file."
 
-      # Step 5: Use a dedicated Action to commit the changes.
+      # Step 5: Commit the updated file back to the repository using manual git commands.
       - name: Commit updated price history
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update Bitcoin price history"
-          file_pattern: price_history.json
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions-bot@github.com'
+          git pull
+          git add price_history.json
+          # Only commit if there are changes to the file
+          git diff --staged --quiet || git commit -m "Update Bitcoin price history"
+          git push
