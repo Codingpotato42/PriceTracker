@@ -17,16 +17,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # NEW STEP ADDED HERE: Install the 'jq' tool we need for processing data.
+      # NEW, MORE RELIABLE METHOD: Use a dedicated Action to install jq.
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        uses: dcarbone/install-jq-action@v2.1.0
 
       # Step 2: Fetch the current Bitcoin price from CoinGecko.
       - name: Fetch Bitcoin price
         id: fetch_price
         run: |
-          # Use curl to get data from the API and jq to extract the price.
+          # This part of the script remains the same.
           PRICE=$(curl -s 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd' | jq -r '.bitcoin.usd')
+          # Check if the price was fetched successfully
+          if [ -z "$PRICE" ] || [ "$PRICE" == "null" ]; then
+            echo "Failed to fetch Bitcoin price. Exiting."
+            exit 1
+          fi
           # Make the price available to other steps.
           echo "price=$PRICE" >> $GITHUB_OUTPUT
           echo "Current BTC Price: $PRICE"
