@@ -56,7 +56,10 @@
         // --- CONFIGURATION ---
         const GITHUB_USERNAME = 'Codingpotato42'; // <-- Change to your GitHub username
         const REPO_NAME = 'PriceTracker'; // <-- Change to your repository name
-        const DATA_FILE_URL = `https://cdn.jsdelivr.net/gh/${GITHUB_USERNAME}/${REPO_NAME}@main/price_history.json`;
+        
+        // --- NEW, CACHE-BYPASSING API URL ---
+        // This asks the GitHub API directly for the file content. It's always the latest version.
+        const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/price_history.json`;
 
         // --- DOM ELEMENTS ---
         const initialPriceEl = document.getElementById('initial-price');
@@ -74,13 +77,12 @@
         }
 
         async function updateData() {
-            statusBarEl.textContent = `Status: Fetching latest data...`;
+            statusBarEl.textContent = `Status: Fetching latest data from API...`;
             statusBarEl.style.color = '#facc15'; // Yellow
-            console.log('Fetching data from:', DATA_FILE_URL);
+            console.log('Fetching data from:', API_URL);
 
             try {
-                // Add a unique query string every time to aggressively bypass all caches.
-                const response = await fetch(`${DATA_FILE_URL}?t=${new Date().getTime()}`);
+                const response = await fetch(API_URL);
                 
                 if (!response.ok) {
                     if (response.status === 404) {
@@ -93,9 +95,13 @@
                     return;
                 }
                 
-                const data = await response.json();
+                const fileData = await response.json();
+                // The API returns the file content as a base64 encoded string. We need to decode it.
+                const decodedContent = atob(fileData.content);
+                const data = JSON.parse(decodedContent);
+
                 loadingMessageEl.style.display = 'none';
-                console.log('Data fetched successfully:', data);
+                console.log('Data fetched and decoded successfully:', data);
 
                 const initialPrice = data.initialPrice;
                 const history = data.history;
@@ -150,7 +156,7 @@
         
         // Fetch data when the page loads
         updateData();
-        // And then fetch it again every 60 seconds to get the latest updates.
+        // And then fetch it again every 60 seconds to stay in sync.
         setInterval(updateData, 60000);
     </script>
 </body>
