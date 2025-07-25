@@ -56,9 +56,7 @@
         // --- CONFIGURATION ---
         const GITHUB_USERNAME = 'Codingpotato42'; // <-- Change to your GitHub username
         const REPO_NAME = 'PriceTracker'; // <-- Change to your repository name
-        
-        // This uses a CDN (jsDelivr) which is more compatible with sandboxed environments.
-        const DATA_FILE_URL = `https://cdn.jsdelivr.net/gh/${GITHUB_USERNAME}/${REPO_NAME}@main/price_history.json`;
+        const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/price_history.json`;
 
         // --- DOM ELEMENTS ---
         const initialPriceEl = document.getElementById('initial-price');
@@ -76,30 +74,31 @@
         }
 
         async function updateData() {
-            statusBarEl.textContent = `Status: Fetching latest data...`;
+            statusBarEl.textContent = `Status: Fetching latest data from API...`;
             statusBarEl.style.color = '#facc15'; // Yellow
-            console.log('Fetching data from:', DATA_FILE_URL);
-
+            
             try {
-                // Add a unique query string to aggressively bypass browser cache.
-                const response = await fetch(`${DATA_FILE_URL}?t=${new Date().getTime()}`);
+                // This fetch request asks the GitHub API directly, bypassing all caches.
+                const response = await fetch(API_URL, { cache: 'no-cache' });
                 
                 if (!response.ok) {
                     if (response.status === 404) {
                         loadingMessageEl.textContent = "Backend has not run yet. Please start it from the 'Actions' tab.";
                         statusBarEl.textContent = "Status: Data file not found on server.";
+                    } else if (response.status === 403) {
+                        statusBarEl.textContent = "Status: API rate limit exceeded. Please wait a bit.";
                     } else {
-                        throw new Error(`Network error: ${response.statusText}`);
+                        statusBarEl.textContent = `Status: Network Error (${response.status})`;
                     }
-                    statusBarEl.style.color = '#f87171'; // Red
-                    return;
+                    throw new Error(`Network error: ${response.statusText}`);
                 }
                 
-                // The CDN provides the raw JSON, so we can parse it directly.
-                const data = await response.json();
-                
+                const fileData = await response.json();
+                // The API returns the file content as a base64 encoded string. We need to decode it.
+                const decodedContent = atob(fileData.content);
+                const data = JSON.parse(decodedContent);
+
                 loadingMessageEl.style.display = 'none';
-                console.log('Data fetched successfully:', data);
 
                 const initialPrice = data.initialPrice;
                 const history = data.history;
@@ -143,7 +142,9 @@
 
             } catch (error) {
                 console.error("Failed to fetch or process data:", error);
-                statusBarEl.textContent = `Status: Error loading data.`;
+                if (!statusBarEl.textContent.includes("API rate limit")) {
+                    statusBarEl.textContent = `Status: Error loading data.`;
+                }
                 statusBarEl.style.color = '#f87171'; // Red
             }
         }
