@@ -52,8 +52,11 @@
     <script>
         // --- CONFIGURATION ---
         const GITHUB_USERNAME = 'Codingpotato42'; // <-- Change to your GitHub username
-        const REPO_NAME = 'Live-Price-Tracker'; // <-- Change to your repository name
-        const DATA_FILE_URL = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/price_history.json`;
+        const REPO_NAME = 'PriceTracker'; // <-- Change to your repository name
+        
+        // --- NEW, MORE RELIABLE DATA URL ---
+        // This uses a CDN (jsDelivr) which has much faster cache updates than raw.githubusercontent.com
+        const DATA_FILE_URL = `https://cdn.jsdelivr.net/gh/${GITHUB_USERNAME}/${REPO_NAME}@main/price_history.json`;
 
         // --- DOM ELEMENTS ---
         const initialPriceEl = document.getElementById('initial-price');
