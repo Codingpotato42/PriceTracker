@@ -3,14 +3,16 @@ name: Live Bitcoin Price Tracker
 # --- TRIGGERS ---
 on:
   schedule:
+    # This schedule runs automatically every 15 minutes.
     - cron: '*/15 * * * *'
+  # This allows the workflow to be run manually from the Actions tab.
   workflow_dispatch:
 
 jobs:
   fetch-and-save-price:
     runs-on: ubuntu-latest
     
-    # --- THE MISSING PERMISSIONS FIX ---
+    # --- PERMISSIONS ---
     # This block gives the workflow permission to write back to the repository.
     permissions:
       contents: write
