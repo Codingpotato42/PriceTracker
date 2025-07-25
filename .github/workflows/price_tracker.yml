@@ -41,7 +41,7 @@ jobs:
         run: |
           HISTORY_FILE="price_history.json"
           NEW_PRICE=${{ steps.fetch_price.outputs.price }}
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          TIMESTAMP=$(date -u +"%Y-%-m-%dT%H:%M:%SZ")
 
           if [ -f "$HISTORY_FILE" ]; then
             jq --argjson price "$NEW_PRICE" --arg time "$TIMESTAMP" \
@@ -54,13 +54,11 @@ jobs:
           fi
           echo "Updated price history file."
 
-      # Step 5: Commit the updated file back to the repository using manual git commands.
+      # Step 5: Commit the updated file back to the repository.
       - name: Commit updated price history
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions-bot@github.com'
-          git pull
           git add price_history.json
-          # Only commit if there are changes to the file
           git diff --staged --quiet || git commit -m "Update Bitcoin price history"
           git push
