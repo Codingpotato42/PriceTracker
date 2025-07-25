@@ -78,8 +78,8 @@
             statusBarEl.style.color = '#facc15'; // Yellow
             
             try {
-                // This fetch request asks the GitHub API directly, bypassing all caches.
-                const response = await fetch(API_URL, { cache: 'no-cache' });
+                // This fetch request asks the GitHub API directly and adds a unique timestamp to bypass all caches.
+                const response = await fetch(`${API_URL}?t=${new Date().getTime()}`, { cache: 'no-cache' });
                 
                 if (!response.ok) {
                     if (response.status === 404) {
