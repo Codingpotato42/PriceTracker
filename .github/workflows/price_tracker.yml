@@ -3,7 +3,9 @@ name: Live Bitcoin Price Tracker
 # --- TRIGGERS ---
 on:
   schedule:
+    # This schedule runs automatically every 15 minutes.
     - cron: '*/15 * * * *'
+  # This allows the workflow to be run manually from the Actions tab.
   workflow_dispatch:
 
 jobs:
@@ -41,7 +43,7 @@ jobs:
         run: |
           HISTORY_FILE="price_history.json"
           NEW_PRICE=${{ steps.fetch_price.outputs.price }}
-          TIMESTAMP=$(date -u +"%Y-%-m-%dT%H:%M:%SZ")
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           if [ -f "$HISTORY_FILE" ]; then
             jq --argjson price "$NEW_PRICE" --arg time "$TIMESTAMP" \
@@ -54,11 +56,9 @@ jobs:
           fi
           echo "Updated price history file."
 
-      # Step 5: Commit the updated file back to the repository.
+      # Step 5: Use a dedicated, robust Action to commit the changes.
       - name: Commit updated price history
-        run: |
-          git config --global user.name 'GitHub Actions Bot'
-          git config --global user.email 'actions-bot@github.com'
-          git add price_history.json
-          git diff --staged --quiet || git commit -m "Update Bitcoin price history"
-          git push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update Bitcoin price history"
+          file_pattern: price_history.json
