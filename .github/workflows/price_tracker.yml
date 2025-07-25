@@ -10,13 +10,15 @@ jobs:
   fetch-and-save-price:
     runs-on: ubuntu-latest
     
+    # --- THE MISSING PERMISSIONS FIX ---
+    # This block gives the workflow permission to write back to the repository.
+    permissions:
+      contents: write
+
     steps:
       # Step 1: Check out the repository's code.
-      # We need to provide a token here so the checkout action can use it later.
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Step 2: Install the 'jq' tool.
       - name: Install jq
@@ -53,7 +55,6 @@ jobs:
           echo "Updated price history file."
 
       # Step 5: Use a dedicated Action to commit the changes.
-      # This is more robust than running git commands manually.
       - name: Commit updated price history
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
