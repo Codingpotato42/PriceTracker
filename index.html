@@ -56,7 +56,8 @@
         // --- CONFIGURATION ---
         const GITHUB_USERNAME = 'Codingpotato42'; // <-- Change to your GitHub username
         const REPO_NAME = 'PriceTracker'; // <-- Change to your repository name
-        const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/price_history.json`;
+        // Reverted to the jsDelivr CDN URL which is more reliable in sandboxed environments.
+        const DATA_FILE_URL = `https://cdn.jsdelivr.net/gh/${GITHUB_USERNAME}/${REPO_NAME}@main/price_history.json`;
 
         // --- DOM ELEMENTS ---
         const initialPriceEl = document.getElementById('initial-price');
@@ -74,29 +75,25 @@
         }
 
         async function updateData() {
-            statusBarEl.textContent = `Status: Fetching latest data from API...`;
+            statusBarEl.textContent = `Status: Fetching latest data...`;
             statusBarEl.style.color = '#facc15'; // Yellow
             
             try {
-                // This fetch request asks the GitHub API directly and adds a unique timestamp to bypass all caches.
-                const response = await fetch(`${API_URL}?t=${new Date().getTime()}`, { cache: 'no-cache' });
+                // This fetch request asks the CDN for the file, adding a timestamp to bypass cache.
+                const response = await fetch(`${DATA_FILE_URL}?t=${new Date().getTime()}`);
                 
                 if (!response.ok) {
                     if (response.status === 404) {
                         loadingMessageEl.textContent = "Backend has not run yet. Please start it from the 'Actions' tab.";
                         statusBarEl.textContent = "Status: Data file not found on server.";
-                    } else if (response.status === 403) {
-                        statusBarEl.textContent = "Status: API rate limit exceeded. Please wait a bit.";
                     } else {
                         statusBarEl.textContent = `Status: Network Error (${response.status})`;
                     }
                     throw new Error(`Network error: ${response.statusText}`);
                 }
                 
-                const fileData = await response.json();
-                // The API returns the file content as a base64 encoded string. We need to decode it.
-                const decodedContent = atob(fileData.content);
-                const data = JSON.parse(decodedContent);
+                // The CDN returns the raw JSON, so we can parse it directly.
+                const data = await response.json();
 
                 loadingMessageEl.style.display = 'none';
 
@@ -142,20 +139,30 @@
 
             } catch (error) {
                 console.error("Failed to fetch or process data:", error);
-                if (!statusBarEl.textContent.includes("API rate limit")) {
-                    statusBarEl.textContent = `Status: Error loading data.`;
-                }
+                // The status bar text is already set in the 'if (!response.ok)' block.
+                // We just need to set the color. This prevents the UI from clearing on error.
                 statusBarEl.style.color = '#f87171'; // Red
             }
         }
 
+        function handleRefreshClick() {
+            updateData();
+            // Add a cooldown to the refresh button
+            refreshButton.disabled = true;
+            refreshButton.textContent = 'Please wait...';
+            setTimeout(() => {
+                refreshButton.disabled = false;
+                refreshButton.textContent = 'Refresh Now';
+            }, 15000); // 15-second cooldown
+        }
+
         // --- INITIALIZATION ---
-        refreshButton.addEventListener('click', updateData);
+        refreshButton.addEventListener('click', handleRefreshClick);
         
         // Fetch data when the page loads
         updateData();
-        // And then fetch it again every 60 seconds to stay in sync.
-        setInterval(updateData, 60000);
+        // Set a less aggressive auto-refresh interval (5 minutes)
+        setInterval(updateData, 300000); // 300,000 milliseconds = 5 minutes
     </script>
 </body>
 </html>
