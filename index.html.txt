@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Bitcoin Price Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen font-sans">
+
+    <div class="w-full max-w-4xl mx-auto bg-gray-800 rounded-xl shadow-2xl p-8">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-yellow-400">Live Bitcoin Price Tracker</h1>
+            <p class="text-gray-400 mt-2">This data is updated automatically by a backend process every 15 minutes.</p>
+        </div>
+
+        <!-- Main Display -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center mb-8">
+            <div class="bg-gray-900 p-6 rounded-lg">
+                <h2 class="text-sm font-bold uppercase text-gray-500">Initial Price</h2>
+                <p id="initial-price" class="text-3xl font-bold mt-2 text-white">-</p>
+            </div>
+            <div class="bg-yellow-500/10 border border-yellow-500 p-6 rounded-lg">
+                <h2 class="text-sm font-bold uppercase text-yellow-400">Live Price</h2>
+                <p id="live-price" class="text-3xl font-bold mt-2 text-yellow-300">-</p>
+            </div>
+            <div class="bg-gray-900 p-6 rounded-lg">
+                <h2 class="text-sm font-bold uppercase text-gray-500">Change</h2>
+                <p id="price-change" class="text-3xl font-bold mt-2 text-white">-</p>
+            </div>
+        </div>
+
+        <!-- Price History -->
+        <div>
+            <h2 class="text-xl font-bold mb-4">Price History</h2>
+            <div id="history-container" class="bg-gray-900 rounded-lg p-4 h-64 overflow-y-auto">
+                <p id="loading-message" class="text-gray-500">Waiting for first data fetch...</p>
+                <ul id="history-list" class="space-y-2">
+                    <!-- History items will be inserted here by JavaScript -->
+                </ul>
+            </div>
+            <p class="text-xs text-gray-500 text-right mt-2">Last checked: <span id="last-updated">Never</span></p>
+        </div>
+        
+        <div class="text-center mt-8 pt-6 border-t border-gray-700">
+             <p class="text-sm text-gray-400">To manually start/update the tracker, go to the 'Actions' tab in the GitHub repository, select 'Live Bitcoin Price Tracker', and click 'Run workflow'.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const GITHUB_USERNAME = 'Codingpotato42'; // <-- Change to your GitHub username
+        const REPO_NAME = 'Live-Price-Tracker'; // <-- Change to your repository name
+        const DATA_FILE_URL = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/price_history.json`;
+
+        // --- DOM ELEMENTS ---
+        const initialPriceEl = document.getElementById('initial-price');
+        const livePriceEl = document.getElementById('live-price');
+        const priceChangeEl = document.getElementById('price-change');
+        const historyListEl = document.getElementById('history-list');
+        const loadingMessageEl = document.getElementById('loading-message');
+        const lastUpdatedEl = document.getElementById('last-updated');
+
+        // --- DATA FETCHING & DISPLAY ---
+
+        function formatCurrency(price) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+        }
+
+        async function updateData() {
+            try {
+                // Add a random query string to prevent the browser from using a cached version of the file.
+                const response = await fetch(`${DATA_FILE_URL}?t=${new Date().getTime()}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        loadingMessageEl.textContent = "Backend has not run yet. Please start it from the 'Actions' tab.";
+                    } else {
+                        throw new Error(`Network error: ${response.statusText}`);
+                    }
+                    return;
+                }
+                
+                const data = await response.json();
+                loadingMessageEl.style.display = 'none';
+
+                const initialPrice = data.initialPrice;
+                const history = data.history;
+                const livePrice = history[history.length - 1].price;
+                const change = livePrice - initialPrice;
+                const changePercent = (change / initialPrice) * 100;
+
+                // Update main displays
+                initialPriceEl.textContent = formatCurrency(initialPrice);
+                livePriceEl.textContent = formatCurrency(livePrice);
+                
+                // Update change display with color
+                priceChangeEl.textContent = `${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
+                if (change > 0) {
+                    priceChangeEl.style.color = '#34d399'; // Green
+                } else if (change < 0) {
+                    priceChangeEl.style.color = '#f87171'; // Red
+                } else {
+                    priceChangeEl.style.color = '#ffffff'; // White
+                }
+
+                // Update history list (showing newest first)
+                historyListEl.innerHTML = ''; // Clear old list
+                [...history].reverse().forEach(entry => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center text-sm p-2 bg-gray-800 rounded';
+                    const priceSpan = document.createElement('span');
+                    priceSpan.className = 'font-bold';
+                    priceSpan.textContent = formatCurrency(entry.price);
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'text-gray-400';
+                    timeSpan.textContent = new Date(entry.timestamp).toLocaleString();
+                    
+                    li.appendChild(priceSpan);
+                    li.appendChild(timeSpan);
+                    historyListEl.appendChild(li);
+                });
+                
+                lastUpdatedEl.textContent = new Date().toLocaleTimeString();
+
+            } catch (error) {
+                console.error("Failed to fetch or process data:", error);
+                loadingMessageEl.textContent = "Error loading data. Check the console for details.";
+            }
+        }
+
+        // --- INITIALIZATION ---
+        // Fetch data when the page loads
+        updateData();
+        // And then fetch it again every 60 seconds to get the latest updates.
+        setInterval(updateData, 60000);
+    </script>
+</body>
+</html>
